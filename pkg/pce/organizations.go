@@ -295,22 +295,24 @@ func handleListOrganizationAuditLogs(ctx context.Context, req mcp.CallToolReques
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
-	entries, err := optionalParam[float64](req, "entries")
-	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
-	page, err := optionalParam[float64](req, "page")
-	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
 
 	arg := &api.ListOrganizationAuditLogsArg{OrganizationId: orgId}
-	if entries != nil {
-		entriesInt := int(*entries)
+	
+	// Check if parameters were provided
+	if _, ok := req.GetArguments()["entries"]; ok {
+		entries, err := optionalParam[float64](req, "entries")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		entriesInt := int(entries)
 		arg.Entries = &entriesInt
 	}
-	if page != nil {
-		pageInt := int(*page)
+	if _, ok := req.GetArguments()["page"]; ok {
+		page, err := optionalParam[float64](req, "page")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		pageInt := int(page)
 		arg.Page = &pageInt
 	}
 
@@ -552,32 +554,34 @@ func handleUpdateOrganizationRole(ctx context.Context, req mcp.CallToolRequest) 
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
-	name, err := optionalParam[string](req, "name")
-	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
-	description, err := optionalParam[string](req, "description")
-	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
-	permissionsJson, err := optionalParam[string](req, "permissions_json")
-	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
 
 	arg := &api.UpdateOrganizationRoleArg{
 		OrganizationId: orgId,
 		RoleId:         roleId,
 	}
-	if name != nil {
-		arg.Name = name
+	
+	// Check if parameters were provided and set them
+	if _, ok := req.GetArguments()["name"]; ok {
+		nameVal, err := optionalParam[string](req, "name")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		arg.Name = &nameVal
 	}
-	if description != nil {
-		arg.Description = description
+	if _, ok := req.GetArguments()["description"]; ok {
+		descriptionVal, err := optionalParam[string](req, "description")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		arg.Description = &descriptionVal
 	}
-	if permissionsJson != nil {
+	if _, ok := req.GetArguments()["permissions_json"]; ok {
+		permissionsJsonVal, err := optionalParam[string](req, "permissions_json")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
 		var permissions []api.Permission
-		if err := json.Unmarshal([]byte(*permissionsJson), &permissions); err != nil {
+		if err := json.Unmarshal([]byte(permissionsJsonVal), &permissions); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Invalid permissions JSON: %v", err)), nil
 		}
 		arg.Permissions = permissions

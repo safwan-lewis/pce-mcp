@@ -344,30 +344,32 @@ func handleGetNodeLogs(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
-	since, err := optionalParam[float64](req, "since")
-	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
-	until, err := optionalParam[float64](req, "until")
-	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
-	maxPoints, err := optionalParam[float64](req, "max_points")
-	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
 
 	arg := &api.GetNodeLogsArg{NodeId: nodeId}
-	if since != nil {
-		sinceInt := int(*since)
+	
+	// Check if parameters were provided
+	if _, ok := req.GetArguments()["since"]; ok {
+		since, err := optionalParam[float64](req, "since")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		sinceInt := int(since)
 		arg.Since = &sinceInt
 	}
-	if until != nil {
-		untilInt := int(*until)
+	if _, ok := req.GetArguments()["until"]; ok {
+		until, err := optionalParam[float64](req, "until")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		untilInt := int(until)
 		arg.Until = &untilInt
 	}
-	if maxPoints != nil {
-		maxPointsInt := int(*maxPoints)
+	if _, ok := req.GetArguments()["max_points"]; ok {
+		maxPoints, err := optionalParam[float64](req, "max_points")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		maxPointsInt := int(maxPoints)
 		arg.MaxPoints = &maxPointsInt
 	}
 
