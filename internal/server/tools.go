@@ -45,6 +45,13 @@ func addDatacenterTools(s *server.MCPServer) {
 }
 
 func addClusterTools(s *server.MCPServer) {
+	s.AddTool(pce.ListClusters())
+	s.AddTool(pce.GetClusterById())
+	s.AddTool(pce.InitializeCluster())
+	s.AddTool(pce.UpdateCluster())
+	s.AddTool(pce.GetClusterJoinKey())
+	s.AddTool(pce.GetClusterMetrics())
+	s.AddTool(pce.ListClusterStoragePools())
 	s.AddTool(pce.GetClusterHardwareById())
 	s.AddTool(pce.GetClusterLicensingById())
 }

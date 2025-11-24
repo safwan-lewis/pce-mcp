@@ -75,6 +75,11 @@ type ClusterList struct {
 	HasLeader      bool   `json:"has_leader"`
 }
 
+type ClusterDetail struct {
+	Cluster ClusterList `json:"cluster"`
+	Nodes   []NodeList  `json:"nodes"`
+}
+
 type InstanceList struct {
 	Id     string `json:"id"`
 	NodeId string `json:"node_id"`
