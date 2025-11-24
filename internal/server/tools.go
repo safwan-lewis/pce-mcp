@@ -64,6 +64,15 @@ func addNodeTools(s *server.MCPServer) {
 	s.AddTool(pce.GetNodeStoragePoolsById())
 	s.AddTool(pce.GetImages())
 	s.AddTool(pce.GetNodePciDevicesById())
+	s.AddTool(pce.GetNodeMetrics())
+	s.AddTool(pce.GetNodeLogs())
+	s.AddTool(pce.GetNodeCapabilities())
+	s.AddTool(pce.WakeNode())
+	s.AddTool(pce.GetNodeConsole())
+	s.AddTool(pce.GetNodeNetworkInterfaces())
+	s.AddTool(pce.GetNodeTasks())
+	s.AddTool(pce.GetNodeJobs())
+	s.AddTool(pce.GetNodeSshKeys())
 }
 
 func addInstanceTools(s *server.MCPServer) {
