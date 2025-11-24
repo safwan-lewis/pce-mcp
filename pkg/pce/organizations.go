@@ -17,6 +17,7 @@ package pce
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/PextraCloud/pce-mcp/internal/session"
@@ -266,4 +267,390 @@ func handleDeleteOrganizationById(ctx context.Context, req mcp.CallToolRequest) 
 	}
 
 	return mcp.NewToolResultText(fmt.Sprintf("Organization %s deleted successfully.", orgId)), nil
+}
+
+func ListOrganizationAuditLogs() (mcp.Tool, server.ToolHandlerFunc) {
+	return mcp.NewTool("list_organization_audit_logs",
+		mcp.WithDescription("Retrieve audit logs for a specific organization. Audit logs provide a record of actions and events that have occurred within the organization, useful for tracking changes and ensuring compliance."),
+		mcp.WithToolAnnotation(mcp.ToolAnnotation{
+			Title:        "List Organization Audit Logs",
+			ReadOnlyHint: mcp.ToBoolPtr(true),
+		}),
+		mcp.WithString("organization_id",
+			mcp.Required(),
+			mcp.Description("Unique organization id (format: org-<xxx>)"),
+		),
+		mcp.WithNumber("entries",
+			mcp.Min(1),
+			mcp.Max(5000),
+			mcp.DefaultNumber(50),
+			mcp.Description("The number of audit log entries to retrieve. Default is 50."),
+		),
+		pageNum,
+	), handleListOrganizationAuditLogs
+}
+
+func handleListOrganizationAuditLogs(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	orgId, err := requiredParam[string](req, "organization_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	entries, err := optionalParam[float64](req, "entries")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	page, err := optionalParam[float64](req, "page")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	arg := &api.ListOrganizationAuditLogsArg{OrganizationId: orgId}
+	if entries != nil {
+		entriesInt := int(*entries)
+		arg.Entries = &entriesInt
+	}
+	if page != nil {
+		pageInt := int(*page)
+		arg.Page = &pageInt
+	}
+
+	client, err := session.GetSession("sessionId")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	logs, listErr := api.ListOrganizationAuditLogs(ctx, client, arg)
+	if listErr != nil {
+		return mcp.NewToolResultError(listErr.Error()), nil
+	}
+
+	return mcp.NewToolResultJSON(logs)
+}
+
+func ListOrganizationAuthProviders() (mcp.Tool, server.ToolHandlerFunc) {
+	return mcp.NewTool("list_organization_auth_providers",
+		mcp.WithDescription("Retrieve a list of authentication providers configured for a specific organization. Auth providers handle user authentication (e.g., local, LDAP)."),
+		mcp.WithToolAnnotation(mcp.ToolAnnotation{
+			Title:        "List Organization Auth Providers",
+			ReadOnlyHint: mcp.ToBoolPtr(true),
+		}),
+		mcp.WithString("organization_id",
+			mcp.Required(),
+			mcp.Description("Unique organization id (format: org-<xxx>)"),
+		),
+	), handleListOrganizationAuthProviders
+}
+
+func handleListOrganizationAuthProviders(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	orgId, err := requiredParam[string](req, "organization_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	client, err := session.GetSession("sessionId")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	providers, listErr := api.ListOrganizationAuthProviders(ctx, client, &api.ListOrganizationAuthProvidersArg{
+		OrganizationId: orgId,
+	})
+	if listErr != nil {
+		return mcp.NewToolResultError(listErr.Error()), nil
+	}
+
+	return mcp.NewToolResultJSON(providers)
+}
+
+func DeleteOrganizationAuthProvider() (mcp.Tool, server.ToolHandlerFunc) {
+	return mcp.NewTool("delete_organization_auth_provider",
+		mcp.WithDescription("Delete an authentication provider from an organization. This action cannot be undone and will affect all users associated with this provider."),
+		mcp.WithToolAnnotation(mcp.ToolAnnotation{
+			Title:           "Delete Organization Auth Provider",
+			DestructiveHint: mcp.ToBoolPtr(true),
+		}),
+		mcp.WithString("organization_id",
+			mcp.Required(),
+			mcp.Description("Unique organization id (format: org-<xxx>)"),
+		),
+		mcp.WithString("auth_provider_id",
+			mcp.Required(),
+			mcp.Description("Unique auth provider id"),
+		),
+		mcp.WithBoolean("are_you_sure",
+			mcp.Required(),
+			mcp.Description("A safety check to prevent accidental deletions. Must be set to true to proceed with deletion."),
+		),
+	), handleDeleteOrganizationAuthProvider
+}
+
+func handleDeleteOrganizationAuthProvider(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	orgId, err := requiredParam[string](req, "organization_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	authProviderId, err := requiredParam[string](req, "auth_provider_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	areYouSure, err := requiredParam[bool](req, "are_you_sure")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	if !areYouSure {
+		return mcp.NewToolResultError("Deletion not confirmed. Set 'are_you_sure' to true to proceed."), nil
+	}
+
+	client, err := session.GetSession("sessionId")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	_, deleteErr := api.DeleteOrganizationAuthProvider(ctx, client, &api.DeleteOrganizationAuthProviderArg{
+		OrganizationId: orgId,
+		AuthProviderId: authProviderId,
+	})
+	if deleteErr != nil {
+		return mcp.NewToolResultError(deleteErr.Error()), nil
+	}
+
+	return mcp.NewToolResultText(fmt.Sprintf("Auth provider %s deleted successfully.", authProviderId)), nil
+}
+
+func ListOrganizationRoles() (mcp.Tool, server.ToolHandlerFunc) {
+	return mcp.NewTool("list_organization_roles",
+		mcp.WithDescription("Retrieve a list of roles defined for a specific organization. Roles define sets of permissions that can be assigned to users."),
+		mcp.WithToolAnnotation(mcp.ToolAnnotation{
+			Title:        "List Organization Roles",
+			ReadOnlyHint: mcp.ToBoolPtr(true),
+		}),
+		mcp.WithString("organization_id",
+			mcp.Required(),
+			mcp.Description("Unique organization id (format: org-<xxx>)"),
+		),
+	), handleListOrganizationRoles
+}
+
+func handleListOrganizationRoles(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	orgId, err := requiredParam[string](req, "organization_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	client, err := session.GetSession("sessionId")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	roles, listErr := api.ListOrganizationRoles(ctx, client, &api.ListOrganizationRolesArg{
+		OrganizationId: orgId,
+	})
+	if listErr != nil {
+		return mcp.NewToolResultError(listErr.Error()), nil
+	}
+
+	return mcp.NewToolResultJSON(roles)
+}
+
+func CreateOrganizationRole() (mcp.Tool, server.ToolHandlerFunc) {
+	return mcp.NewTool("create_organization_role",
+		mcp.WithDescription("Create a new role for an organization. Roles define sets of permissions that can be assigned to users. Permissions must be specified as an array of objects with 'resource' and 'actions' fields."),
+		mcp.WithToolAnnotation(mcp.ToolAnnotation{
+			Title: "Create Organization Role",
+		}),
+		mcp.WithString("organization_id",
+			mcp.Required(),
+			mcp.Description("Unique organization id (format: org-<xxx>)"),
+		),
+		mcp.WithString("name",
+			mcp.Required(),
+			mcp.Description("The name of the role (3-32 characters)"),
+		),
+		mcp.WithString("description",
+			mcp.Description("Optional description of the role (max 512 characters)"),
+		),
+		mcp.WithString("permissions_json",
+			mcp.Required(),
+			mcp.Description("JSON string representing an array of permission objects. Each permission must have 'resource' (string) and 'actions' (array of strings) fields. Example: '[{\"resource\":\"instances\",\"actions\":[\"read\",\"write\"]}]'"),
+		),
+	), handleCreateOrganizationRole
+}
+
+func handleCreateOrganizationRole(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	orgId, err := requiredParam[string](req, "organization_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	name, err := requiredParam[string](req, "name")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	description, err := optionalParam[string](req, "description")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	permissionsJson, err := requiredParam[string](req, "permissions_json")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	var permissions []api.Permission
+	if err := json.Unmarshal([]byte(permissionsJson), &permissions); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid permissions JSON: %v", err)), nil
+	}
+
+	client, err := session.GetSession("sessionId")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	role, createErr := api.CreateOrganizationRole(ctx, client, &api.CreateOrganizationRoleArg{
+		OrganizationId: orgId,
+		Name:           name,
+		Description:    description,
+		Permissions:    permissions,
+	})
+	if createErr != nil {
+		return mcp.NewToolResultError(createErr.Error()), nil
+	}
+
+	return mcp.NewToolResultJSON(role)
+}
+
+func UpdateOrganizationRole() (mcp.Tool, server.ToolHandlerFunc) {
+	return mcp.NewTool("update_organization_role",
+		mcp.WithDescription("Update an existing role for an organization. You can update the name, description, and/or permissions. Omitted fields will remain unchanged."),
+		mcp.WithToolAnnotation(mcp.ToolAnnotation{
+			Title: "Update Organization Role",
+		}),
+		mcp.WithString("organization_id",
+			mcp.Required(),
+			mcp.Description("Unique organization id (format: org-<xxx>)"),
+		),
+		mcp.WithString("role_id",
+			mcp.Required(),
+			mcp.Description("Unique role id"),
+		),
+		mcp.WithString("name",
+			mcp.Description("The new name of the role (3-32 characters). Omit to leave unchanged."),
+		),
+		mcp.WithString("description",
+			mcp.Description("The new description of the role (max 512 characters). Omit to leave unchanged."),
+		),
+		mcp.WithString("permissions_json",
+			mcp.Description("JSON string representing an array of permission objects. Each permission must have 'resource' (string) and 'actions' (array of strings) fields. Omit to leave unchanged."),
+		),
+	), handleUpdateOrganizationRole
+}
+
+func handleUpdateOrganizationRole(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	orgId, err := requiredParam[string](req, "organization_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	roleId, err := requiredParam[string](req, "role_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	name, err := optionalParam[string](req, "name")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	description, err := optionalParam[string](req, "description")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	permissionsJson, err := optionalParam[string](req, "permissions_json")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	arg := &api.UpdateOrganizationRoleArg{
+		OrganizationId: orgId,
+		RoleId:         roleId,
+	}
+	if name != nil {
+		arg.Name = name
+	}
+	if description != nil {
+		arg.Description = description
+	}
+	if permissionsJson != nil {
+		var permissions []api.Permission
+		if err := json.Unmarshal([]byte(*permissionsJson), &permissions); err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Invalid permissions JSON: %v", err)), nil
+		}
+		arg.Permissions = permissions
+	}
+
+	client, err := session.GetSession("sessionId")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	role, updateErr := api.UpdateOrganizationRole(ctx, client, arg)
+	if updateErr != nil {
+		return mcp.NewToolResultError(updateErr.Error()), nil
+	}
+
+	return mcp.NewToolResultJSON(role)
+}
+
+func ListOrganizationAiProviders() (mcp.Tool, server.ToolHandlerFunc) {
+	return mcp.NewTool("list_organization_ai_providers",
+		mcp.WithDescription("Retrieve a list of AI providers configured for a specific organization. AI providers enable AI features in the web UI."),
+		mcp.WithToolAnnotation(mcp.ToolAnnotation{
+			Title:        "List Organization AI Providers",
+			ReadOnlyHint: mcp.ToBoolPtr(true),
+		}),
+		mcp.WithString("organization_id",
+			mcp.Required(),
+			mcp.Description("Unique organization id (format: org-<xxx>)"),
+		),
+	), handleListOrganizationAiProviders
+}
+
+func handleListOrganizationAiProviders(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	orgId, err := requiredParam[string](req, "organization_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	client, err := session.GetSession("sessionId")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	providers, listErr := api.ListOrganizationAiProviders(ctx, client, &api.ListOrganizationAiProvidersArg{
+		OrganizationId: orgId,
+	})
+	if listErr != nil {
+		return mcp.NewToolResultError(listErr.Error()), nil
+	}
+
+	return mcp.NewToolResultJSON(providers)
+}
+
+func ListSupportedAiProviders() (mcp.Tool, server.ToolHandlerFunc) {
+	return mcp.NewTool("list_supported_ai_providers",
+		mcp.WithDescription("Retrieve a list of supported AI provider types that can be configured for organizations. This includes information about whether each provider is self-hosted."),
+		mcp.WithToolAnnotation(mcp.ToolAnnotation{
+			Title:        "List Supported AI Providers",
+			ReadOnlyHint: mcp.ToBoolPtr(true),
+		}),
+	), handleListSupportedAiProviders
+}
+
+func handleListSupportedAiProviders(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	client, err := session.GetSession("sessionId")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	providers, listErr := api.ListSupportedAiProviders(ctx, client, &api.ListSupportedAiProvidersArg{})
+	if listErr != nil {
+		return mcp.NewToolResultError(listErr.Error()), nil
+	}
+
+	return mcp.NewToolResultJSON(providers)
 }

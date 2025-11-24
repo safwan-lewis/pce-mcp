@@ -24,10 +24,16 @@ func addOrganizationTools(s *server.MCPServer) {
 	s.AddTool(pce.ListOrganizations())
 	s.AddTool(pce.GetOrganizationById())
 	s.AddTool(pce.GetCurrentOrganization())
-	// s.AddTool(pce.ListOrganizationAuditLogsById())
-	// s.AddTool(pce.ListOrganizationUserLockoutsById())
+	s.AddTool(pce.ListOrganizationAuditLogs())
 	s.AddTool(pce.CreateOrganization())
 	s.AddTool(pce.DeleteOrganizationById())
+	s.AddTool(pce.ListOrganizationAuthProviders())
+	s.AddTool(pce.DeleteOrganizationAuthProvider())
+	s.AddTool(pce.ListOrganizationRoles())
+	s.AddTool(pce.CreateOrganizationRole())
+	s.AddTool(pce.UpdateOrganizationRole())
+	s.AddTool(pce.ListOrganizationAiProviders())
+	s.AddTool(pce.ListSupportedAiProviders())
 }
 
 func addUserTools(s *server.MCPServer) {
