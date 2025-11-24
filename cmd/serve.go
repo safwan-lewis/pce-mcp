@@ -24,6 +24,7 @@ var (
 	flagInsecureTLS    bool
 	flagCACertPath     string
 	flagTimeoutSeconds int
+	flagSafetyLevel    string
 	headers            map[string]string
 )
 
@@ -37,6 +38,7 @@ func init() {
 	serveCmd.Flags().BoolVar(&flagInsecureTLS, "tls-skip-verify", false, fmt.Sprintf("Skip TLS certificate verification for Pextra CloudEnvironment(R) API client. This may make you vulnerable to man-in-the-middle attacks; overridable via %s env var", config.EnvTLSSkipVerify))
 	serveCmd.Flags().StringVar(&flagCACertPath, "tls-ca-cert", "", fmt.Sprintf("Path to PEM file with CA certificate(s) to trust for PCE API (use instead of --tls-skip-verify). Overridable via %s env var", config.EnvCACert))
 	serveCmd.Flags().IntVar(&flagTimeoutSeconds, "timeout", 10, fmt.Sprintf("Timeout in seconds for Pextra CloudEnvironment(R) API client requests, overridable via %s env var", config.EnvTimeout))
+	serveCmd.Flags().StringVar(&flagSafetyLevel, "safety-level", "read-only", fmt.Sprintf("Safety level for tool operations: 'read-only' (only read operations), 'update' (read + create/update operations), 'delete' (all operations including destructive). Overridable via %s env var", config.EnvSafetyLevel))
 	serveCmd.Flags().StringToStringVar(&headers, "headers", nil, "Custom headers to add to each PCE API request, in key=value format, can be specified multiple times")
 }
 
@@ -50,6 +52,12 @@ var serveCmd = &cobra.Command{
 			httpHeaders.Add(k, v)
 		}
 
+		// Parse safety level
+		safetyLevel, err := config.ParseSafetyLevel(flagSafetyLevel)
+		if err != nil {
+			return fmt.Errorf("invalid safety level: %w", err)
+		}
+
 		// Build config with env fallbacks
 		c, err := config.WithEnvDefaults(config.AppConfig{
 			SSEAddr:           flagSSEAddr,
@@ -60,6 +68,7 @@ var serveCmd = &cobra.Command{
 			PCECACertPath:     flagCACertPath,
 			PCEDefaultTimeout: time.Duration(flagTimeoutSeconds) * time.Second,
 			PCECustomHeaders:  httpHeaders,
+			ToolSafetyLevel:   safetyLevel,
 		})
 		if err != nil {
 			return err
@@ -71,8 +80,10 @@ var serveCmd = &cobra.Command{
 			return err
 		}
 
+		log.Printf("Tool safety level: %s", c.ToolSafetyLevel.String())
+
 		s := server.GetServer()
-		server.AddTools(s)
+		server.AddTools(s, c.ToolSafetyLevel)
 
 		// Start servers (empty address disables per-flag help)
 		errCh := make(chan error, 3)

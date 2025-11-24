@@ -32,7 +32,48 @@ const (
 	EnvTLSSkipVerify = "TLS_SKIP_VERIFY"
 	EnvTimeout       = "TIMEOUT"
 	EnvCACert        = "TLS_CA_CERT"
+	EnvSafetyLevel   = "SAFETY_LEVEL"
 )
+
+// SafetyLevel defines the level of tool operations allowed.
+type SafetyLevel int
+
+const (
+	// SafetyLevelReadOnly allows only read operations (Get, List tools)
+	SafetyLevelReadOnly SafetyLevel = iota
+	// SafetyLevelUpdate allows read operations and non-destructive write operations (Create, Update, Deploy, Backup, Power)
+	SafetyLevelUpdate
+	// SafetyLevelDelete allows all operations including destructive ones (Delete, Restore)
+	SafetyLevelDelete
+)
+
+// String returns the string representation of SafetyLevel
+func (sl SafetyLevel) String() string {
+	switch sl {
+	case SafetyLevelReadOnly:
+		return "read-only"
+	case SafetyLevelUpdate:
+		return "update"
+	case SafetyLevelDelete:
+		return "delete"
+	default:
+		return "unknown"
+	}
+}
+
+// ParseSafetyLevel parses a safety level from a string.
+func ParseSafetyLevel(s string) (SafetyLevel, error) {
+	switch s {
+	case "read-only", "readonly", "read_only":
+		return SafetyLevelReadOnly, nil
+	case "update":
+		return SafetyLevelUpdate, nil
+	case "delete":
+		return SafetyLevelDelete, nil
+	default:
+		return SafetyLevelReadOnly, fmt.Errorf("invalid safety level: %s (must be one of: read-only, update, delete)", s)
+	}
+}
 
 // AppConfig holds runtime configuration for the server and API client.
 type AppConfig struct {
@@ -47,6 +88,9 @@ type AppConfig struct {
 	PCECACertPath     string
 	PCEDefaultTimeout time.Duration
 	PCECustomHeaders  http.Header
+
+	// Tool safety level
+	ToolSafetyLevel SafetyLevel
 }
 
 var cfg AppConfig
@@ -107,6 +151,18 @@ func WithEnvDefaults(c AppConfig) (*AppConfig, error) {
 				return nil, validationError{msgs: []string{fmt.Sprintf("invalid %s: %s", EnvTimeout, v)}}
 			}
 		}
+	}
+
+	// Safety level: env override if provided, otherwise use flag value or default to SafetyLevelReadOnly for safety
+	if v := os.Getenv(EnvSafetyLevel); v != "" {
+		if sl, err := ParseSafetyLevel(v); err == nil {
+			c.ToolSafetyLevel = sl
+		} else {
+			return nil, validationError{msgs: []string{err.Error()}}
+		}
+	} else if c.ToolSafetyLevel == 0 {
+		// If no env var and flag was not set (zero value), default to ReadOnly for safety
+		c.ToolSafetyLevel = SafetyLevelReadOnly
 	}
 
 	// collect validation issues

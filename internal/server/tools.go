@@ -16,90 +16,105 @@ limitations under the License.
 package server
 
 import (
+	"log"
+
+	"github.com/PextraCloud/pce-mcp/internal/config"
 	"github.com/PextraCloud/pce-mcp/pkg/pce"
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func addOrganizationTools(s *server.MCPServer) {
-	s.AddTool(pce.ListOrganizations())
-	s.AddTool(pce.GetOrganizationById())
-	s.AddTool(pce.GetCurrentOrganization())
-	s.AddTool(pce.ListOrganizationAuditLogs())
-	s.AddTool(pce.CreateOrganization())
-	s.AddTool(pce.DeleteOrganizationById())
-	s.AddTool(pce.ListOrganizationAuthProviders())
-	s.AddTool(pce.DeleteOrganizationAuthProvider())
-	s.AddTool(pce.ListOrganizationRoles())
-	s.AddTool(pce.CreateOrganizationRole())
-	s.AddTool(pce.UpdateOrganizationRole())
-	s.AddTool(pce.ListOrganizationAiProviders())
-	s.AddTool(pce.ListSupportedAiProviders())
+// addToolConditionally adds a tool only if it's allowed by the safety level.
+func addToolConditionally(s *server.MCPServer, toolName string, toolFunc func() (mcp.Tool, server.ToolHandlerFunc), safetyLevel config.SafetyLevel) {
+	if ShouldEnableTool(toolName, safetyLevel) {
+		tool, handler := toolFunc()
+		s.AddTool(tool, handler)
+	} else {
+		log.Printf("Tool '%s' disabled by safety level '%s'", toolName, safetyLevel.String())
+	}
 }
 
-func addUserTools(s *server.MCPServer) {
-	s.AddTool(pce.ListUsersInOrganizationById())
-	s.AddTool(pce.InvalidateUserSessionsById())
-	s.AddTool(pce.DeleteUserById())
+func addOrganizationTools(s *server.MCPServer, safetyLevel config.SafetyLevel) {
+	addToolConditionally(s, "list_organizations", pce.ListOrganizations, safetyLevel)
+	addToolConditionally(s, "get_organization_by_id", pce.GetOrganizationById, safetyLevel)
+	addToolConditionally(s, "get_current_organization", pce.GetCurrentOrganization, safetyLevel)
+	addToolConditionally(s, "list_organization_audit_logs", pce.ListOrganizationAuditLogs, safetyLevel)
+	addToolConditionally(s, "create_organization", pce.CreateOrganization, safetyLevel)
+	addToolConditionally(s, "delete_organization_by_id", pce.DeleteOrganizationById, safetyLevel)
+	addToolConditionally(s, "list_organization_auth_providers", pce.ListOrganizationAuthProviders, safetyLevel)
+	addToolConditionally(s, "delete_organization_auth_provider", pce.DeleteOrganizationAuthProvider, safetyLevel)
+	addToolConditionally(s, "list_organization_roles", pce.ListOrganizationRoles, safetyLevel)
+	addToolConditionally(s, "create_organization_role", pce.CreateOrganizationRole, safetyLevel)
+	addToolConditionally(s, "update_organization_role", pce.UpdateOrganizationRole, safetyLevel)
+	addToolConditionally(s, "list_organization_ai_providers", pce.ListOrganizationAiProviders, safetyLevel)
+	addToolConditionally(s, "list_supported_ai_providers", pce.ListSupportedAiProviders, safetyLevel)
 }
 
-func addDatacenterTools(s *server.MCPServer) {
-	s.AddTool(pce.ListDatacenters())
-	s.AddTool(pce.GetDatacenterById())
-	s.AddTool(pce.CreateDatacenter())
-	s.AddTool(pce.UpdateDatacenter())
-	s.AddTool(pce.DeleteDatacenterById())
+func addUserTools(s *server.MCPServer, safetyLevel config.SafetyLevel) {
+	addToolConditionally(s, "list_users_in_organization_by_id", pce.ListUsersInOrganizationById, safetyLevel)
+	addToolConditionally(s, "invalidate_user_sessions_by_id", pce.InvalidateUserSessionsById, safetyLevel)
+	addToolConditionally(s, "delete_user_by_id", pce.DeleteUserById, safetyLevel)
 }
 
-func addClusterTools(s *server.MCPServer) {
-	s.AddTool(pce.ListClusters())
-	s.AddTool(pce.GetClusterById())
-	s.AddTool(pce.InitializeCluster())
-	s.AddTool(pce.UpdateCluster())
-	s.AddTool(pce.GetClusterJoinKey())
-	s.AddTool(pce.GetClusterMetrics())
-	s.AddTool(pce.ListClusterStoragePools())
-	s.AddTool(pce.GetClusterHardwareById())
-	s.AddTool(pce.GetClusterLicensingById())
+func addDatacenterTools(s *server.MCPServer, safetyLevel config.SafetyLevel) {
+	addToolConditionally(s, "list_datacenters", pce.ListDatacenters, safetyLevel)
+	addToolConditionally(s, "get_datacenter_by_id", pce.GetDatacenterById, safetyLevel)
+	addToolConditionally(s, "create_datacenter", pce.CreateDatacenter, safetyLevel)
+	addToolConditionally(s, "update_datacenter", pce.UpdateDatacenter, safetyLevel)
+	addToolConditionally(s, "delete_datacenter_by_id", pce.DeleteDatacenterById, safetyLevel)
 }
 
-func addNodeTools(s *server.MCPServer) {
-	s.AddTool(pce.GetNodeById())
-	s.AddTool(pce.GetCurrentNode())
-	s.AddTool(pce.GetNodeHardwareById())
-	s.AddTool(pce.GetNodeLicenseById())
-	s.AddTool(pce.GetNodeStoragePoolsById())
-	s.AddTool(pce.GetImages())
-	s.AddTool(pce.GetNodePciDevicesById())
-	s.AddTool(pce.GetNodeMetrics())
-	s.AddTool(pce.GetNodeLogs())
-	s.AddTool(pce.GetNodeCapabilities())
-	s.AddTool(pce.WakeNode())
-	s.AddTool(pce.GetNodeConsole())
-	s.AddTool(pce.GetNodeNetworkInterfaces())
-	s.AddTool(pce.GetNodeTasks())
-	s.AddTool(pce.GetNodeJobs())
-	s.AddTool(pce.GetNodeSshKeys())
+func addClusterTools(s *server.MCPServer, safetyLevel config.SafetyLevel) {
+	addToolConditionally(s, "list_clusters", pce.ListClusters, safetyLevel)
+	addToolConditionally(s, "get_cluster_by_id", pce.GetClusterById, safetyLevel)
+	addToolConditionally(s, "initialize_cluster", pce.InitializeCluster, safetyLevel)
+	addToolConditionally(s, "update_cluster", pce.UpdateCluster, safetyLevel)
+	addToolConditionally(s, "get_cluster_join_key", pce.GetClusterJoinKey, safetyLevel)
+	addToolConditionally(s, "get_cluster_metrics", pce.GetClusterMetrics, safetyLevel)
+	addToolConditionally(s, "list_cluster_storage_pools", pce.ListClusterStoragePools, safetyLevel)
+	addToolConditionally(s, "get_cluster_hardware_by_id", pce.GetClusterHardwareById, safetyLevel)
+	addToolConditionally(s, "get_cluster_licensing_by_id", pce.GetClusterLicensingById, safetyLevel)
 }
 
-func addInstanceTools(s *server.MCPServer) {
-	s.AddTool(pce.GetInstancesInNode())
-	s.AddTool(pce.GetInstancesInCluster())
-	s.AddTool(pce.DeployInstance())
-	s.AddTool(pce.GetInstanceById())
-	s.AddTool(pce.UpdateInstance())
-	s.AddTool(pce.DeleteInstance())
-	s.AddTool(pce.RestoreInstance())
-	s.AddTool(pce.GetInstanceMetrics())
-	s.AddTool(pce.GetInstanceConsole())
-	s.AddTool(pce.BackupInstance())
-	s.AddTool(pce.PowerInstance())
+func addNodeTools(s *server.MCPServer, safetyLevel config.SafetyLevel) {
+	addToolConditionally(s, "get_node_by_id", pce.GetNodeById, safetyLevel)
+	addToolConditionally(s, "get_current_node", pce.GetCurrentNode, safetyLevel)
+	addToolConditionally(s, "get_node_hardware_by_id", pce.GetNodeHardwareById, safetyLevel)
+	addToolConditionally(s, "get_node_license_by_id", pce.GetNodeLicenseById, safetyLevel)
+	addToolConditionally(s, "get_node_storagepools_by_id", pce.GetNodeStoragePoolsById, safetyLevel)
+	addToolConditionally(s, "get_images", pce.GetImages, safetyLevel)
+	addToolConditionally(s, "get_node_pcidevices_by_id", pce.GetNodePciDevicesById, safetyLevel)
+	addToolConditionally(s, "get_node_metrics", pce.GetNodeMetrics, safetyLevel)
+	addToolConditionally(s, "get_node_logs", pce.GetNodeLogs, safetyLevel)
+	addToolConditionally(s, "get_node_capabilities", pce.GetNodeCapabilities, safetyLevel)
+	addToolConditionally(s, "wake_node", pce.WakeNode, safetyLevel)
+	addToolConditionally(s, "get_node_console", pce.GetNodeConsole, safetyLevel)
+	addToolConditionally(s, "get_node_network_interfaces", pce.GetNodeNetworkInterfaces, safetyLevel)
+	addToolConditionally(s, "get_node_tasks", pce.GetNodeTasks, safetyLevel)
+	addToolConditionally(s, "get_node_jobs", pce.GetNodeJobs, safetyLevel)
+	addToolConditionally(s, "get_node_ssh_keys", pce.GetNodeSshKeys, safetyLevel)
 }
 
-func AddTools(s *server.MCPServer) {
-	addOrganizationTools(s)
-	addUserTools(s)
-	addDatacenterTools(s)
-	addClusterTools(s)
-	addNodeTools(s)
-	addInstanceTools(s)
+func addInstanceTools(s *server.MCPServer, safetyLevel config.SafetyLevel) {
+	addToolConditionally(s, "get_instances_in_node", pce.GetInstancesInNode, safetyLevel)
+	addToolConditionally(s, "get_instances_in_cluster", pce.GetInstancesInCluster, safetyLevel)
+	addToolConditionally(s, "deploy_instance", pce.DeployInstance, safetyLevel)
+	addToolConditionally(s, "get_instance_by_id", pce.GetInstanceById, safetyLevel)
+	addToolConditionally(s, "update_instance", pce.UpdateInstance, safetyLevel)
+	addToolConditionally(s, "delete_instance", pce.DeleteInstance, safetyLevel)
+	addToolConditionally(s, "restore_instance", pce.RestoreInstance, safetyLevel)
+	addToolConditionally(s, "get_instance_metrics", pce.GetInstanceMetrics, safetyLevel)
+	addToolConditionally(s, "get_instance_console", pce.GetInstanceConsole, safetyLevel)
+	addToolConditionally(s, "backup_instance", pce.BackupInstance, safetyLevel)
+	addToolConditionally(s, "power_instance", pce.PowerInstance, safetyLevel)
+}
+
+// AddTools registers all tools with the server, filtered by the configured safety level.
+func AddTools(s *server.MCPServer, safetyLevel config.SafetyLevel) {
+	addOrganizationTools(s, safetyLevel)
+	addUserTools(s, safetyLevel)
+	addDatacenterTools(s, safetyLevel)
+	addClusterTools(s, safetyLevel)
+	addNodeTools(s, safetyLevel)
+	addInstanceTools(s, safetyLevel)
 }

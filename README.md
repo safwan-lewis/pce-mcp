@@ -28,6 +28,10 @@ Flags:
 -   `--tls-skip-verify` (default `false`): Disable TLS verification for the PCE API client. This exposes you to man-in-the-middle attacks and is not recommended for production use. Mutually exclusive with `--tls-ca-cert`.
 -   `--timeout` (default `10`): PCE API request timeout in seconds.
 -   `--headers` (default `""`): Custom HTTP headers to include in the PCE API client requests, formatted as a key=value pairs, can be specified multiple times. Example: `--headers "Authorization=Basic xxx" --headers "X-Custom-Header=Value"`.
+-   `--safety-level` (default `read-only`): Safety level for tool operations to prevent dangerous operations when using with AI agents. Options:
+    - `read-only`: Only enables read operations (Get, List tools). Safe for monitoring and exploration.
+    - `update`: Enables read operations plus non-destructive write operations (Create, Update, Deploy, Backup, Power). Allows configuration changes but prevents data loss.
+    - `delete`: Enables all operations including destructive ones (Delete, Restore). Use with caution, especially with AI agents.
 
 Environment variables (fallbacks if corresponding flag is not set):
 
@@ -38,6 +42,7 @@ Environment variables (fallbacks if corresponding flag is not set):
 -   `TLS_CA_CERT` (file path)
 -   `TLS_SKIP_VERIFY` (e.g., `true`/`false`)
 -   `TIMEOUT` (integer seconds)
+-   `SAFETY_LEVEL` (one of: `read-only`, `update`, `delete`)
 
 ## Usage
 
@@ -72,8 +77,29 @@ export HTTP_ADDR=":3001"
 export DISABLE_STDIO=true
 export TLS_SKIP_VERIFY=true
 export TIMEOUT=15
+export SAFETY_LEVEL=read-only
 ./pce-mcp serve
 ```
+
+### Safety Levels
+
+When using the server with AI agents, it's recommended to use a restricted safety level to prevent accidental destructive operations:
+
+```bash
+# Read-only mode - safe for exploration and monitoring
+./pce-mcp serve --base-url "https://localhost:5007" --safety-level read-only
+
+# Update mode - allows configuration changes but prevents deletions
+./pce-mcp serve --base-url "https://localhost:5007" --safety-level update
+
+# Delete mode - full access (use with caution)
+./pce-mcp serve --base-url "https://localhost:5007" --safety-level delete
+```
+
+**Tool Categories:**
+- **Read-only tools** (available in all modes): List and Get operations for querying resources
+- **Update tools** (available in `update` and `delete` modes): Create, Update, Deploy, Backup, Power operations
+- **Destructive tools** (only in `delete` mode): Delete and Restore operations that can cause data loss
 
 ## Development
 
