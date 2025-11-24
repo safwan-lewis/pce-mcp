@@ -36,6 +36,14 @@ func addUserTools(s *server.MCPServer) {
 	s.AddTool(pce.DeleteUserById())
 }
 
+func addDatacenterTools(s *server.MCPServer) {
+	s.AddTool(pce.ListDatacenters())
+	s.AddTool(pce.GetDatacenterById())
+	s.AddTool(pce.CreateDatacenter())
+	s.AddTool(pce.UpdateDatacenter())
+	s.AddTool(pce.DeleteDatacenterById())
+}
+
 func addClusterTools(s *server.MCPServer) {
 	s.AddTool(pce.GetClusterHardwareById())
 	s.AddTool(pce.GetClusterLicensingById())
@@ -60,6 +68,7 @@ func addInstanceTools(s *server.MCPServer) {
 func AddTools(s *server.MCPServer) {
 	addOrganizationTools(s)
 	addUserTools(s)
+	addDatacenterTools(s)
 	addClusterTools(s)
 	addNodeTools(s)
 	addInstanceTools(s)

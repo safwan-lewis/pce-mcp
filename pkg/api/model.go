@@ -56,6 +56,11 @@ type DatacenterList struct {
 	Description string `json:"description"`
 }
 
+type DatacenterDetail struct {
+	Datacenter DatacenterList `json:"datacenter"`
+	Clusters   []ClusterList  `json:"clusters"`
+}
+
 type ClusterList struct {
 	Id             string `json:"id"`
 	OrganizationId string `json:"organization_id"`
