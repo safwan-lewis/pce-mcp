@@ -50,7 +50,11 @@ func handleListOrganizations(ctx context.Context, req mcp.CallToolRequest) (*mcp
 		return mcp.NewToolResultError(listErr.Error()), nil
 	}
 
-	return mcp.NewToolResultJSON(orgs)
+	// Wrap the array in an object to match MCP library expectations
+	result := map[string]interface{}{
+		"organizations": orgs,
+	}
+	return mcp.NewToolResultJSON(result)
 }
 
 func GetOrganizationById() (mcp.Tool, server.ToolHandlerFunc) {

@@ -24,7 +24,7 @@ import (
 )
 
 type ListOrganizationsArg struct{}
-type ListOrganizationsResponse = []OrganizationDetail
+type ListOrganizationsResponse = []OrganizationList
 
 func ListOrganizations(ctx context.Context, c *Client, arg *ListOrganizationsArg) (*ListOrganizationsResponse, *APIError) {
 	path := c.ExpandPath("/v1/organizations", nil)

@@ -17,6 +17,14 @@ package api
 
 import "github.com/PextraCloud/pce-mcp/pkg/api/enum"
 
+type OrganizationList struct {
+	Id          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Creation    string `json:"creation"`
+	IsRoot      bool   `json:"is_root"`
+}
+
 type OrganizationDetail struct {
 	Organization struct {
 		Id          string `json:"id"`
