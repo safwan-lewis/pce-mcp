@@ -112,7 +112,7 @@ type AuditLogEntry struct {
 	Timestamp   string `json:"timestamp"`
 	UserId      string `json:"user_id,omitempty"`
 	Username    string `json:"username,omitempty"`
-	Action      string `json:"action"`
+	Action      int    `json:"action"`
 	Resource    string `json:"resource,omitempty"`
 	ResourceId  string `json:"resource_id,omitempty"`
 	IpAddress   string `json:"ip_address,omitempty"`
