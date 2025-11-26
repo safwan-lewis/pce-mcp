@@ -287,9 +287,9 @@ All fixes follow a consistent pattern and have been committed to the `autocode` 
 
 **Date:** November 26, 2025  
 **Safety Level:** `update` (non-destructive write operations enabled)  
-**Status:** 3/4 tools working, 1 has PCE API error, 8 not yet tested
+**Status:** 4/5 tools working (80%), 1 has PCE API error, 7 not yet tested
 
-### Update-Level Tools Tested (4/12)
+### Update-Level Tools Tested (5/12)
 
 | Tool | Status | Notes |
 |------|--------|-------|
@@ -297,8 +297,9 @@ All fixes follow a consistent pattern and have been committed to the `autocode` 
 | `power_instance` | ✅ Working | Successfully started and stopped debian_test3. Returns empty task_id (PCE API quirk) |
 | `update_cluster` | ✅ Working | Successfully updated cluster description |
 | `update_datacenter` | ✅ Working | Successfully updated datacenter description |
+| `deploy_instance` | ✅ Working | Successfully deployed mcp-test-vm (inst-HXaWB3nGoDbukDqSaRJ7k) |
 
-### Not Yet Tested (8/12)
+### Not Yet Tested (7/12)
 - `backup_instance` - Creates backup of instance
 - `update_organization_role` - Updates role permissions
 - `create_organization_role` - Creates new role
@@ -306,7 +307,6 @@ All fixes follow a consistent pattern and have been committed to the `autocode` 
 - `create_organization` - Creates new organization
 - `wake_node` - Wakes sleeping node via WOL
 - `initialize_cluster` - Initializes new cluster
-- `deploy_instance` - Deploys new instance
 
 ### Issues Discovered
 
@@ -323,14 +323,23 @@ All fixes follow a consistent pattern and have been committed to the `autocode` 
    - Response: `{"message":"Power action initiated successfully","task_id":""}`
    - Note: Empty task_id doesn't affect functionality
 
+3. **`deploy_instance` - Successfully Tested**
+   - Parsed API spec from `pkg/api/api-1.json` to construct proper payload
+   - Successfully deployed test VM "mcp-test-vm" with minimal config
+   - Instance ID: `inst-HXaWB3nGoDbukDqSaRJ7k`
+   - Specs: 1 vCPU (1 socket, 1 core, 1 thread), 512MB RAM, 8GB disk
+   - Returns proper task_id: `57df5b34-048c-4544-92e8-9d3bb9c87bf1`
+   - Required fields: destination, name, architecture, type, cpu, memory, networks, metadata
+
 ### Working Tools Summary
 
-**Update Tools (3/4 tested):**
+**Update Tools (4/5 tested):**
 - ✅ `update_cluster` - Successfully modified cluster description
 - ✅ `update_datacenter` - Successfully modified datacenter description
 - ✅ `power_instance` - Successfully started and stopped instances (empty task_id is cosmetic)
+- ✅ `deploy_instance` - Successfully deployed new VM with full configuration
 
-All working tools properly execute their operations and return appropriate success responses.
+All working tools properly execute their operations and return appropriate success responses. The `deploy_instance` tool successfully parsed the v2 API schema and deployed a functional test instance.
 
 ### Testing Environment
 - **Server:** Running with `--safety-level update`
@@ -338,11 +347,16 @@ All working tools properly execute their operations and return appropriate succe
 - **Update tools enabled:** 12 tools (create/update/power/backup operations)
 - **Test cluster:** cls-sAUFLcykNqhcmE6Ris3-O (cluster44)
 - **Test datacenter:** dc-2eM7gtpSRNKVc_cXtcYuT (us-west-1)
-- **Test instances:** inst-r-wZ_pAPCBS4GL8KCJSuc (helloTest), inst-Y8rlX2-OXT26N2QsMVKVz (debian_test3)
+- **Test node:** node-v-0Arj5EWsLjOEJCJDkxP (server2)
+- **Test instances:** 
+  - inst-r-wZ_pAPCBS4GL8KCJSuc (helloTest)
+  - inst-Y8rlX2-OXT26N2QsMVKVz (debian_test3) - used for power testing
+  - inst-HXaWB3nGoDbukDqSaRJ7k (mcp-test-vm) - deployed via MCP deploy_instance tool
 
 ### Next Steps
 1. Investigate `update_instance` API error with PCE backend team
-2. Continue testing remaining 8 update-level tools:
+2. Consider cleaning up test instance "mcp-test-vm" (inst-HXaWB3nGoDbukDqSaRJ7k)
+3. Continue testing remaining 7 update-level tools:
    - `backup_instance` - Creates backup of instance
    - `update_organization_role` - Updates role permissions
    - `create_organization_role` - Creates new role
@@ -350,5 +364,4 @@ All working tools properly execute their operations and return appropriate succe
    - `create_organization` - Creates new organization
    - `wake_node` - Wakes sleeping node via WOL
    - `initialize_cluster` - Initializes new cluster
-   - `deploy_instance` - Deploys new instance
 
