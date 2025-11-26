@@ -692,6 +692,24 @@ Based on testing and API spec:
 
 ---
 
+---
+
+## 📋 For Next Session
+
+See **[IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)** for:
+- Complete list of all 134 PCE API endpoints
+- 61 implemented tools (tested vs untested breakdown)
+- 73 not-yet-implemented endpoints with priorities
+- Recommended implementation phases
+- Progress tracking metrics
+
+**Quick Start for Next Session:**
+- **Phase 1:** Test remaining 5 update-level tools (backup_instance, create_organization_role, etc.)
+- **Phase 2:** Implement volume management (create, delete, resize)
+- **Phase 3:** Implement vSwitch CRUD operations
+
+---
+
 ## Final Statistics
 
 - **Total Endpoints:** 61 (57 original + 4 new)
