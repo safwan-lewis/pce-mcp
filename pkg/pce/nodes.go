@@ -383,7 +383,11 @@ func handleGetNodeLogs(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 		return mcp.NewToolResultError(getErr.Error()), nil
 	}
 
-	return mcp.NewToolResultJSON(logs)
+	// Wrap the array in an object to match MCP library expectations
+	result := map[string]interface{}{
+		"logs": logs,
+	}
+	return mcp.NewToolResultJSON(result)
 }
 
 func GetNodeCapabilities() (mcp.Tool, server.ToolHandlerFunc) {
