@@ -330,7 +330,11 @@ func handleListOrganizationAuditLogs(ctx context.Context, req mcp.CallToolReques
 		return mcp.NewToolResultError(listErr.Error()), nil
 	}
 
-	return mcp.NewToolResultJSON(logs)
+	// Wrap the array in an object to match MCP library expectations
+	result := map[string]interface{}{
+		"audit_logs": logs,
+	}
+	return mcp.NewToolResultJSON(result)
 }
 
 func ListOrganizationAuthProviders() (mcp.Tool, server.ToolHandlerFunc) {
@@ -365,7 +369,11 @@ func handleListOrganizationAuthProviders(ctx context.Context, req mcp.CallToolRe
 		return mcp.NewToolResultError(listErr.Error()), nil
 	}
 
-	return mcp.NewToolResultJSON(providers)
+	// Wrap the array in an object to match MCP library expectations
+	result := map[string]interface{}{
+		"auth_providers": providers,
+	}
+	return mcp.NewToolResultJSON(result)
 }
 
 func DeleteOrganizationAuthProvider() (mcp.Tool, server.ToolHandlerFunc) {
@@ -455,7 +463,11 @@ func handleListOrganizationRoles(ctx context.Context, req mcp.CallToolRequest) (
 		return mcp.NewToolResultError(listErr.Error()), nil
 	}
 
-	return mcp.NewToolResultJSON(roles)
+	// Wrap the array in an object to match MCP library expectations
+	result := map[string]interface{}{
+		"roles": roles,
+	}
+	return mcp.NewToolResultJSON(result)
 }
 
 func CreateOrganizationRole() (mcp.Tool, server.ToolHandlerFunc) {
@@ -636,7 +648,11 @@ func handleListOrganizationAiProviders(ctx context.Context, req mcp.CallToolRequ
 		return mcp.NewToolResultError(listErr.Error()), nil
 	}
 
-	return mcp.NewToolResultJSON(providers)
+	// Wrap the array in an object to match MCP library expectations
+	result := map[string]interface{}{
+		"ai_providers": providers,
+	}
+	return mcp.NewToolResultJSON(result)
 }
 
 func ListSupportedAiProviders() (mcp.Tool, server.ToolHandlerFunc) {
@@ -660,5 +676,9 @@ func handleListSupportedAiProviders(ctx context.Context, req mcp.CallToolRequest
 		return mcp.NewToolResultError(listErr.Error()), nil
 	}
 
-	return mcp.NewToolResultJSON(providers)
+	// Wrap the array in an object to match MCP library expectations
+	result := map[string]interface{}{
+		"supported_ai_providers": providers,
+	}
+	return mcp.NewToolResultJSON(result)
 }
