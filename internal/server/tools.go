@@ -109,6 +109,8 @@ func addInstanceTools(s *server.MCPServer, safetyLevel config.SafetyLevel) {
 	addToolConditionally(s, "get_instance_console", pce.GetInstanceConsole, safetyLevel)
 	addToolConditionally(s, "backup_instance", pce.BackupInstance, safetyLevel)
 	addToolConditionally(s, "power_instance", pce.PowerInstance, safetyLevel)
+	addToolConditionally(s, "get_instance_devices", pce.GetInstanceDevices, safetyLevel)
+	addToolConditionally(s, "attach_device_to_instance", pce.AttachDeviceToInstance, safetyLevel)
 }
 
 // AddTools registers all tools with the server, filtered by the configured safety level.

@@ -340,3 +340,62 @@ func RestoreInstance(ctx context.Context, c *Client, arg *RestoreInstanceArg) (*
 	}
 	return &resp, nil
 }
+
+type GetInstanceDevicesArg struct {
+	InstanceId string
+	NodeId     string
+}
+type InstanceDevice struct {
+	Name        string          `json:"name"`
+	Type        int             `json:"type"`
+	Description *string         `json:"description"`
+	Metadata    json.RawMessage `json:"metadata"`
+}
+type GetInstanceDevicesResponse []InstanceDevice
+
+func GetInstanceDevices(ctx context.Context, c *Client, arg *GetInstanceDevicesArg) (*GetInstanceDevicesResponse, *APIError) {
+	if arg == nil || arg.InstanceId == "" || arg.NodeId == "" {
+		return nil, NewAPIError(400, "instance_id and node_id are required")
+	}
+
+	path := c.ExpandPath("/v1/instances/{instance_id}/devices/", map[string]string{"instance_id": arg.InstanceId})
+
+	query := make(url.Values)
+	query.Set("node_id", arg.NodeId)
+
+	var resp GetInstanceDevicesResponse
+	if apiErr := c.Get(ctx, path, query, &resp); apiErr != nil {
+		return nil, apiErr
+	}
+	return &resp, nil
+}
+
+type AttachDeviceToInstanceArg struct {
+	InstanceId string
+	NodeId     string
+	Payload    json.RawMessage
+}
+type AttachDeviceToInstanceResponse struct {
+	Name        string `json:"name"`
+	NeedsReboot bool   `json:"needs_reboot"`
+}
+
+func AttachDeviceToInstance(ctx context.Context, c *Client, arg *AttachDeviceToInstanceArg) (*AttachDeviceToInstanceResponse, *APIError) {
+	if arg == nil || arg.InstanceId == "" || arg.NodeId == "" {
+		return nil, NewAPIError(400, "instance_id and node_id are required")
+	}
+	if len(arg.Payload) == 0 {
+		return nil, NewAPIError(400, "payload is required")
+	}
+
+	path := c.ExpandPath("/v1/instances/{instance_id}/devices/", map[string]string{"instance_id": arg.InstanceId})
+
+	query := make(url.Values)
+	query.Set("node_id", arg.NodeId)
+
+	var resp AttachDeviceToInstanceResponse
+	if apiErr := c.Post(ctx, path, query, bytes.NewReader(arg.Payload), &resp); apiErr != nil {
+		return nil, apiErr
+	}
+	return &resp, nil
+}

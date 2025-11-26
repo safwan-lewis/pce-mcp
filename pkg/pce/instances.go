@@ -581,3 +581,116 @@ func handleRestoreInstance(ctx context.Context, req mcp.CallToolRequest) (*mcp.C
 		TaskId:  res.TaskId,
 	})
 }
+
+func GetInstanceDevices() (mcp.Tool, server.ToolHandlerFunc) {
+	return mcp.NewTool("get_instance_devices",
+		mcp.WithDescription("Get all devices attached to an instance. This includes storage volumes, network interfaces, and other devices."),
+		mcp.WithToolAnnotation(mcp.ToolAnnotation{
+			Title:        "Get Instance Devices",
+			ReadOnlyHint: mcp.ToBoolPtr(true),
+		}),
+		mcp.WithString("instance_id",
+			mcp.Required(),
+			mcp.Description("Unique instance id (format: inst-<xxx>)"),
+		),
+		mcp.WithString("node_id",
+			mcp.Required(),
+			mcp.Description("Unique node id (format: node-<xxx>)"),
+		),
+	), handleGetInstanceDevices
+}
+
+func handleGetInstanceDevices(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	instanceId, err := requiredParam[string](req, "instance_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	nodeId, err := requiredParam[string](req, "node_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	client, err := session.GetSession("sessionId")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	devices, getErr := api.GetInstanceDevices(ctx, client, &api.GetInstanceDevicesArg{
+		InstanceId: instanceId,
+		NodeId:     nodeId,
+	})
+	if getErr != nil {
+		return mcp.NewToolResultError(getErr.Error()), nil
+	}
+
+	return mcp.NewToolResultJSON(struct {
+		Devices *api.GetInstanceDevicesResponse `json:"devices"`
+	}{
+		Devices: devices,
+	})
+}
+
+func AttachDeviceToInstance() (mcp.Tool, server.ToolHandlerFunc) {
+	return mcp.NewTool("attach_device_to_instance",
+		mcp.WithDescription("Attach a device to an instance (storage volume, network interface, etc.). The instance may need to be rebooted for changes to take effect."),
+		mcp.WithToolAnnotation(mcp.ToolAnnotation{
+			Title: "Attach Device to Instance",
+		}),
+		mcp.WithString("instance_id",
+			mcp.Required(),
+			mcp.Description("Unique instance id (format: inst-<xxx>)"),
+		),
+		mcp.WithString("node_id",
+			mcp.Required(),
+			mcp.Description("Unique node id (format: node-<xxx>)"),
+		),
+		mcp.WithString("payload_json",
+			mcp.Required(),
+			mcp.Description("JSON payload for the device to attach. Must include: name, type, and metadata. Refer to the API spec for device-specific metadata structure."),
+		),
+	), handleAttachDeviceToInstance
+}
+
+func handleAttachDeviceToInstance(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	instanceId, err := requiredParam[string](req, "instance_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	nodeId, err := requiredParam[string](req, "node_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	payloadStr, err := requiredParam[string](req, "payload_json")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	payloadBytes := []byte(payloadStr)
+	if !json.Valid(payloadBytes) {
+		return mcp.NewToolResultError("payload_json must be valid JSON"), nil
+	}
+
+	client, err := session.GetSession("sessionId")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	res, attachErr := api.AttachDeviceToInstance(ctx, client, &api.AttachDeviceToInstanceArg{
+		InstanceId: instanceId,
+		NodeId:     nodeId,
+		Payload:    json.RawMessage(payloadBytes),
+	})
+	if attachErr != nil {
+		return mcp.NewToolResultError(attachErr.Error()), nil
+	}
+
+	return mcp.NewToolResultJSON(struct {
+		Message     string `json:"message"`
+		DeviceName  string `json:"device_name"`
+		NeedsReboot bool   `json:"needs_reboot"`
+	}{
+		Message:     "Device attached successfully",
+		DeviceName:  res.Name,
+		NeedsReboot: res.NeedsReboot,
+	})
+}

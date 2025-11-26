@@ -66,6 +66,7 @@ var ToolSafetyLevel = map[string]config.SafetyLevel{
 	"get_instance_by_id":                      config.SafetyLevelReadOnly,
 	"get_instance_metrics":                    config.SafetyLevelReadOnly,
 	"get_instance_console":                    config.SafetyLevelReadOnly,
+	"get_instance_devices":                    config.SafetyLevelReadOnly,
 
 	// Update/Write tools (Create, Update, Deploy, Backup, Power operations)
 	"create_organization":                     config.SafetyLevelUpdate,
@@ -80,6 +81,7 @@ var ToolSafetyLevel = map[string]config.SafetyLevel{
 	"update_instance":                         config.SafetyLevelUpdate,
 	"power_instance":                          config.SafetyLevelUpdate,
 	"backup_instance":                         config.SafetyLevelUpdate,
+	"attach_device_to_instance":               config.SafetyLevelUpdate,
 
 	// Destructive tools (Delete, Restore operations)
 	"delete_organization_by_id":               config.SafetyLevelDelete,
