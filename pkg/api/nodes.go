@@ -189,11 +189,11 @@ type GetNodeLogsArg struct {
 }
 
 type NodeLogEntry struct {
-	Priority   string `json:"PRIORITY"`
-	Facility   string `json:"FACILITY,omitempty"`
-	Identifier string `json:"IDENTIFIER,omitempty"`
-	Message    string `json:"MESSAGE"`
-	Matches    int    `json:"matches"`
+	Priority   string      `json:"PRIORITY"`
+	Facility   string      `json:"FACILITY,omitempty"`
+	Identifier string      `json:"IDENTIFIER,omitempty"`
+	Message    string      `json:"MESSAGE"`
+	Matches    interface{} `json:"matches,omitempty"`
 }
 
 type GetNodeLogsResponse = []NodeLogEntry
