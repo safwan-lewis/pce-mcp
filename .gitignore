@@ -1,2 +1,9 @@
 dist/
 *.exe
+
+# Test files
+test_*.ps1
+test_*.go
+
+# Old binaries
+pce-mcp
