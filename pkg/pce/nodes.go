@@ -557,7 +557,11 @@ func handleGetNodeTasks(ctx context.Context, req mcp.CallToolRequest) (*mcp.Call
 		return mcp.NewToolResultError(getErr.Error()), nil
 	}
 
-	return mcp.NewToolResultJSON(tasks)
+	// Wrap the array in an object to match MCP library expectations
+	result := map[string]interface{}{
+		"tasks": tasks,
+	}
+	return mcp.NewToolResultJSON(result)
 }
 
 func GetNodeJobs() (mcp.Tool, server.ToolHandlerFunc) {
@@ -592,7 +596,11 @@ func handleGetNodeJobs(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 		return mcp.NewToolResultError(getErr.Error()), nil
 	}
 
-	return mcp.NewToolResultJSON(jobs)
+	// Wrap the array in an object to match MCP library expectations
+	result := map[string]interface{}{
+		"jobs": jobs,
+	}
+	return mcp.NewToolResultJSON(result)
 }
 
 func GetNodeSshKeys() (mcp.Tool, server.ToolHandlerFunc) {
@@ -627,5 +635,9 @@ func handleGetNodeSshKeys(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 		return mcp.NewToolResultError(getErr.Error()), nil
 	}
 
-	return mcp.NewToolResultJSON(keys)
+	// Wrap the array in an object to match MCP library expectations
+	result := map[string]interface{}{
+		"ssh_keys": keys,
+	}
+	return mcp.NewToolResultJSON(result)
 }
