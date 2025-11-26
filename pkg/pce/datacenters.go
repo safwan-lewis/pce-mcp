@@ -60,7 +60,11 @@ func handleListDatacenters(ctx context.Context, req mcp.CallToolRequest) (*mcp.C
 		return mcp.NewToolResultError(listErr.Error()), nil
 	}
 
-	return mcp.NewToolResultJSON(datacenters)
+	// Wrap the array in an object to match MCP library expectations
+	result := map[string]interface{}{
+		"datacenters": datacenters,
+	}
+	return mcp.NewToolResultJSON(result)
 }
 
 func GetDatacenterById() (mcp.Tool, server.ToolHandlerFunc) {
