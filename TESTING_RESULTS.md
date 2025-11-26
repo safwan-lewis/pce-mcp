@@ -281,3 +281,67 @@ The MCP server is **production-ready for all read-only operations**! 🎉
 
 All fixes follow a consistent pattern and have been committed to the `autocode` branch. The MCP server is ready for production deployment with read-only access to PCE infrastructure.
 
+---
+
+## Update Safety Level Testing (Partial)
+
+**Date:** November 26, 2025  
+**Safety Level:** `update` (non-destructive write operations enabled)
+
+### Update-Level Tools Tested (4/12)
+
+| Tool | Status | Notes |
+|------|--------|-------|
+| `update_instance` | ⚠️ API Error | Returns "A bug has been detected. Please contact support." - PCE API issue |
+| `power_instance` | ⚠️ Partial Success | Tool returns success but action doesn't execute. Empty task_id returned |
+| `update_cluster` | ✅ Working | Successfully updated cluster description |
+| `update_datacenter` | ✅ Working | Successfully updated datacenter description |
+
+### Not Yet Tested (8/12)
+- `backup_instance` - Creates backup of instance
+- `update_organization_role` - Updates role permissions
+- `create_organization_role` - Creates new role
+- `create_datacenter` - Creates new datacenter
+- `create_organization` - Creates new organization
+- `wake_node` - Wakes sleeping node via WOL
+- `initialize_cluster` - Initializes new cluster
+- `deploy_instance` - Deploys new instance
+
+### Issues Discovered
+
+1. **`update_instance` - PCE API Error**
+   - Tested on multiple instances (helloTest, debian_test3)
+   - All attempts return: "A bug has been detected. Please contact support."
+   - This appears to be a PCE API backend issue, not MCP server issue
+   - API endpoint: `PATCH /v1/instances/{instance_id}`
+
+2. **`power_instance` - Silent Failure**
+   - Tool returns success message with empty `task_id`
+   - Power action does not actually execute on the instance
+   - Verified in PCE console - instance remained stopped
+   - Response: `{"message":"Power action initiated successfully","task_id":""}`
+   - Needs investigation into why task_id is empty
+
+### Working Tools Summary
+
+**Update Tools (2/2 tested metadata updates):**
+- ✅ `update_cluster` - Successfully modified cluster description
+- ✅ `update_datacenter` - Successfully modified datacenter description
+
+Both tools properly update metadata fields and return appropriate success responses.
+
+### Testing Environment
+- **Server:** Running with `--safety-level update`
+- **Destructive tools disabled:** 7 tools (delete/restore operations)
+- **Update tools enabled:** 12 tools (create/update/power/backup operations)
+- **Test cluster:** cls-sAUFLcykNqhcmE6Ris3-O (cluster44)
+- **Test datacenter:** dc-2eM7gtpSRNKVc_cXtcYuT (us-west-1)
+- **Test instances:** inst-r-wZ_pAPCBS4GL8KCJSuc (helloTest), inst-Y8rlX2-OXT26N2QsMVKVz (debian_test3)
+
+### Next Steps
+1. Investigate `update_instance` API error with PCE backend team
+2. Debug why `power_instance` returns empty task_id
+3. Continue testing remaining 8 update-level tools when issues are resolved
+4. Test create operations (organization, datacenter, role, instance)
+5. Test backup and wake_node operations
+
