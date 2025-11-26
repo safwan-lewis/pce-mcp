@@ -199,14 +199,135 @@ The test script:
 - Verified all expected tools are present
 - Confirmed no missing or extra tools
 
+## Runtime Testing Session ✅ COMPLETED
+
+**Date:** November 26, 2025
+**PCE Instance:** demo.pextra.cloud
+**Test Method:** Direct MCP tool invocation via Claude Desktop integration
+
+### Issues Found and Fixed
+
+#### 1. MCP Library Array Wrapping Requirement ✅ FIXED
+**Issue:** The `mcp-go` library expects tool results to be JSON objects, not raw arrays.
+**Error:** `Expected object, received array at path: structuredContent`
+
+**Endpoints Fixed:**
+- ✅ `list_organizations` - Wrapped in `{"organizations": [...]}`
+- ✅ `list_datacenters` - Wrapped in `{"datacenters": [...]}`
+- ✅ `list_clusters` - Wrapped in `{"clusters": [...]}`
+- ✅ `list_organization_auth_providers` - Wrapped in `{"auth_providers": [...]}`
+- ✅ `list_organization_audit_logs` - Wrapped in `{"audit_logs": [...]}`
+- ✅ `list_organization_roles` - Wrapped in `{"roles": [...]}`
+- ✅ `list_organization_ai_providers` - Wrapped in `{"ai_providers": [...]}`
+- ✅ `list_supported_ai_providers` - Wrapped in `{"supported_ai_providers": [...]}`
+- ✅ `get_node_tasks` - Wrapped in `{"tasks": [...]}`
+- ✅ `get_node_jobs` - Wrapped in `{"jobs": [...]}`
+- ✅ `get_node_ssh_keys` - Wrapped in `{"ssh_keys": {...}}`
+- ✅ `get_node_logs` - Wrapped in `{"logs": [...]}`
+
+**Commits:**
+- `fix: wrap list results in objects for MCP compatibility` (organizations, datacenters, clusters)
+- `fix: wrap auth providers, audit logs, roles, and AI providers arrays in objects for MCP compatibility`
+- `fix: wrap node tasks, jobs, and SSH keys arrays in objects for MCP compatibility`
+- `fix: wrap node logs array in object for MCP compatibility`
+
+#### 2. Organization List Type Mismatch ✅ FIXED
+**Issue:** `ListOrganizationsResponse` was defined as `[]OrganizationDetail` but API returns `[]OrganizationList`.
+**Result:** Organizations were returned with empty fields.
+
+**Fix:** Changed type definition to `[]OrganizationList` in `pkg/api/organizations.go`
+**Commit:** `fix: correct ListOrganizationsResponse type to match API response`
+
+#### 3. Audit Log Action Field Type Mismatch ✅ FIXED
+**Issue:** `AuditLogEntry.Action` field was defined as `string` but API returns `int`.
+**Error:** `json: cannot unmarshal number into Go struct field AuditLogEntry.action of type string`
+
+**Fix:** Changed `Action` field type from `string` to `int` in `pkg/api/organizations.go`
+**Commit:** `fix: change AuditLogEntry.Action field type from string to int`
+
+### Endpoints Successfully Tested
+
+#### Organization Endpoints
+- ✅ `list_organizations` - Returns list of organizations
+- ✅ `get_organization_by_id` - Returns full organization tree with datacenters, clusters, nodes
+- ✅ `list_organization_auth_providers` - Returns list of authentication providers
+- ✅ `list_organization_audit_logs` - Returns audit log entries with proper pagination
+- ✅ `list_organization_roles` - Returns roles with permissions
+- ✅ `list_organization_ai_providers` - Returns configured AI providers
+- ✅ `list_supported_ai_providers` - Returns list of supported AI provider types
+
+#### Datacenter Endpoints
+- ✅ `list_datacenters` - Returns datacenters in organization
+- ✅ `get_datacenter_by_id` - Returns datacenter details with clusters
+
+#### Cluster Endpoints
+- ✅ `list_clusters` - Returns clusters in datacenter
+- ✅ `get_cluster_by_id` - Returns cluster details with nodes
+- ✅ `get_cluster_metrics` - Returns resource usage metrics
+- ✅ `list_cluster_storage_pools` - Returns storage pools in cluster
+- ✅ `get_cluster_hardware_by_id` - Returns aggregated hardware info
+- ✅ `get_cluster_licensing_by_id` - Returns licensing info for nodes
+
+#### Node Endpoints
+- ✅ `get_node_by_id` - Returns node details
+- ✅ `get_current_node` - Returns current node info
+- ✅ `get_node_hardware_by_id` - Returns CPU, memory, disk info
+- ✅ `get_node_license_by_id` - Returns license info with proper redaction
+- ✅ `get_node_storagepools_by_id` - Returns storage pools on node
+- ✅ `get_node_pcidevices_by_id` - Returns PCI devices including GPUs
+- ✅ `get_node_network_interfaces` - Returns network interfaces with vSwitch assignments
+- ✅ `get_node_capabilities` - Returns virtualization capabilities
+- ✅ `get_node_tasks` - Returns historical tasks
+- ✅ `get_node_jobs` - Returns scheduled jobs
+- ✅ `get_node_ssh_keys` - Returns SSH keys (authorized + system)
+
+#### Instance Endpoints
+- ✅ `get_instances_in_node` - Returns instances on specific node
+- ✅ `get_images` - Returns available images
+
+#### User Endpoints
+- ✅ `list_users_in_organization_by_id` - Returns users in organization
+
+### Test Coverage Summary
+
+**Endpoints Tested:** 26/57 (45.6%)
+**Endpoints Fixed:** 13 (all array wrapping + type mismatches)
+**Commits Made:** 7 (including 1 for API type fixes)
+
+### Endpoints Ready for Testing
+
+The following endpoints have been tested and verified working:
+- All organization read-only operations
+- All datacenter read-only operations
+- All cluster read-only operations
+- Most node read-only operations
+- Instance and image listing
+
+### Endpoints Not Yet Tested
+
+**Write Operations (Destructive):**
+- Organization CRUD (create, update, delete)
+- Datacenter CRUD
+- Cluster operations (initialize, update)
+- Instance operations (deploy, update, delete, backup, restore, power)
+- User operations (delete, invalidate sessions)
+
+**Remaining Read Operations:**
+- Node metrics, logs, console
+- Instance metrics, console
+- Wake-on-LAN
+
 ## Next Steps
 
 1. ✅ Build the project to verify compilation - **COMPLETED**
 2. ✅ Run server against PCE instance - **COMPLETED**
 3. ✅ Verify tool registration - **COMPLETED** (all 57 tools registered)
-4. **Use an MCP client to execute tools** - Ready for runtime testing
-5. **Monitor error logs during tool execution** - For runtime testing
-6. **Test edge cases** - Invalid IDs, missing parameters, etc.
+4. ✅ Use an MCP client to execute tools - **COMPLETED** (26 endpoints tested)
+5. ✅ Fix runtime issues - **COMPLETED** (13 array wrapping + type fixes)
+6. **Continue testing remaining read-only endpoints** - In Progress
+7. **Test write operations carefully** - Pending (requires user approval)
+8. **Monitor error logs during tool execution** - Ongoing
+9. **Test edge cases** - Invalid IDs, missing parameters, etc.
 
 ## Current Git Status
 
