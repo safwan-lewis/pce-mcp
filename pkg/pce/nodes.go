@@ -313,7 +313,11 @@ func handleGetNodeMetrics(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 		return mcp.NewToolResultError(getErr.Error()), nil
 	}
 
-	return mcp.NewToolResultJSON(metrics)
+	// Wrap the array in an object to match MCP library expectations
+	result := map[string]interface{}{
+		"metrics": metrics,
+	}
+	return mcp.NewToolResultJSON(result)
 }
 
 func GetNodeLogs() (mcp.Tool, server.ToolHandlerFunc) {
