@@ -59,6 +59,8 @@ var ToolSafetyLevel = map[string]config.SafetyLevel{
 	"get_node_tasks":                          config.SafetyLevelReadOnly,
 	"get_node_jobs":                           config.SafetyLevelReadOnly,
 	"get_node_ssh_keys":                       config.SafetyLevelReadOnly,
+	"list_vswitches":                          config.SafetyLevelReadOnly,
+	"list_volumes":                            config.SafetyLevelReadOnly,
 	"get_instances_in_node":                   config.SafetyLevelReadOnly,
 	"get_instances_in_cluster":                config.SafetyLevelReadOnly,
 	"get_instance_by_id":                      config.SafetyLevelReadOnly,

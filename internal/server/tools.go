@@ -93,6 +93,8 @@ func addNodeTools(s *server.MCPServer, safetyLevel config.SafetyLevel) {
 	addToolConditionally(s, "get_node_tasks", pce.GetNodeTasks, safetyLevel)
 	addToolConditionally(s, "get_node_jobs", pce.GetNodeJobs, safetyLevel)
 	addToolConditionally(s, "get_node_ssh_keys", pce.GetNodeSshKeys, safetyLevel)
+	addToolConditionally(s, "list_vswitches", pce.ListVSwitches, safetyLevel)
+	addToolConditionally(s, "list_volumes", pce.ListVolumes, safetyLevel)
 }
 
 func addInstanceTools(s *server.MCPServer, safetyLevel config.SafetyLevel) {
