@@ -286,14 +286,15 @@ All fixes follow a consistent pattern and have been committed to the `autocode` 
 ## Update Safety Level Testing (Partial)
 
 **Date:** November 26, 2025  
-**Safety Level:** `update` (non-destructive write operations enabled)
+**Safety Level:** `update` (non-destructive write operations enabled)  
+**Status:** 3/4 tools working, 1 has PCE API error, 8 not yet tested
 
 ### Update-Level Tools Tested (4/12)
 
 | Tool | Status | Notes |
 |------|--------|-------|
 | `update_instance` | ⚠️ API Error | Returns "A bug has been detected. Please contact support." - PCE API issue |
-| `power_instance` | ⚠️ Partial Success | Tool returns success but action doesn't execute. Empty task_id returned |
+| `power_instance` | ✅ Working | Successfully started and stopped debian_test3. Returns empty task_id (PCE API quirk) |
 | `update_cluster` | ✅ Working | Successfully updated cluster description |
 | `update_datacenter` | ✅ Working | Successfully updated datacenter description |
 
@@ -315,20 +316,21 @@ All fixes follow a consistent pattern and have been committed to the `autocode` 
    - This appears to be a PCE API backend issue, not MCP server issue
    - API endpoint: `PATCH /v1/instances/{instance_id}`
 
-2. **`power_instance` - Silent Failure**
-   - Tool returns success message with empty `task_id`
-   - Power action does not actually execute on the instance
-   - Verified in PCE console - instance remained stopped
+2. **`power_instance` - Empty task_id (Minor Issue)**
+   - Tool works correctly - successfully starts and stops instances
+   - PCE API returns empty `task_id` in response (cosmetic issue)
+   - Verified working: Started and stopped debian_test3 instance successfully
    - Response: `{"message":"Power action initiated successfully","task_id":""}`
-   - Needs investigation into why task_id is empty
+   - Note: Empty task_id doesn't affect functionality
 
 ### Working Tools Summary
 
-**Update Tools (2/2 tested metadata updates):**
+**Update Tools (3/4 tested):**
 - ✅ `update_cluster` - Successfully modified cluster description
 - ✅ `update_datacenter` - Successfully modified datacenter description
+- ✅ `power_instance` - Successfully started and stopped instances (empty task_id is cosmetic)
 
-Both tools properly update metadata fields and return appropriate success responses.
+All working tools properly execute their operations and return appropriate success responses.
 
 ### Testing Environment
 - **Server:** Running with `--safety-level update`
@@ -340,8 +342,13 @@ Both tools properly update metadata fields and return appropriate success respon
 
 ### Next Steps
 1. Investigate `update_instance` API error with PCE backend team
-2. Debug why `power_instance` returns empty task_id
-3. Continue testing remaining 8 update-level tools when issues are resolved
-4. Test create operations (organization, datacenter, role, instance)
-5. Test backup and wake_node operations
+2. Continue testing remaining 8 update-level tools:
+   - `backup_instance` - Creates backup of instance
+   - `update_organization_role` - Updates role permissions
+   - `create_organization_role` - Creates new role
+   - `create_datacenter` - Creates new datacenter
+   - `create_organization` - Creates new organization
+   - `wake_node` - Wakes sleeping node via WOL
+   - `initialize_cluster` - Initializes new cluster
+   - `deploy_instance` - Deploys new instance
 
