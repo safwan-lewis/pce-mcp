@@ -414,25 +414,237 @@ func handleBackupInstance(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 
 func DeployInstance() (mcp.Tool, server.ToolHandlerFunc) {
 	return mcp.NewTool("deploy_instance",
-		mcp.WithDescription("Deploy a new instance using the v2 deployment API. Provide the payload in JSON format as described in the API specification."),
+		mcp.WithDescription("Deploy a new instance using the v2 deployment API. Specify either node_id or cluster_id for placement, and provide instance configuration including CPU, memory, networks, and metadata."),
 		mcp.WithToolAnnotation(mcp.ToolAnnotation{
 			Title: "Deploy Instance",
 		}),
-		mcp.WithString("payload_json",
+		// Destination: either node_id or cluster_id (mutually exclusive)
+		mcp.WithString("node_id",
+			mcp.Description("Unique node id (format: node-<xxx>) where to deploy the instance. Either node_id or cluster_id must be provided, but not both."),
+		),
+		mcp.WithString("cluster_id",
+			mcp.Description("Unique cluster id (format: clus-<xxx>) for smart instance placement. Either node_id or cluster_id must be provided, but not both."),
+		),
+		// Basic instance info
+		mcp.WithString("name",
 			mcp.Required(),
-			mcp.Description("JSON payload for the deployment request. Refer to the API spec for the supported fields."),
+			mcp.MinLength(3),
+			mcp.MaxLength(255),
+			mcp.Pattern("^[a-zA-Z0-9_-]+$"),
+			mcp.Description("The name of the instance (3-255 characters, alphanumeric, underscores, hyphens)."),
+		),
+		mcp.WithString("description",
+			mcp.MaxLength(512),
+			mcp.Description("Description of the instance (max 512 characters)."),
+		),
+		mcp.WithString("architecture",
+			mcp.Required(),
+			mcp.Description("The CPU architecture of the instance (e.g., 'x86_64', 'aarch64'). Accepted values can be retrieved from the node capabilities endpoint."),
+		),
+		mcp.WithString("image",
+			mcp.Description("The name of the image to deploy the instance from. Required for LXC instances."),
+		),
+		mcp.WithNumber("type",
+			mcp.Required(),
+			mcp.Min(0),
+			mcp.Max(3),
+			mcp.Description("Instance type: 0=Docker, 1=LXC, 2=QEMU, 3=Podman."),
+		),
+		// CPU configuration
+		mcp.WithNumber("cpu_sockets",
+			mcp.Required(),
+			mcp.Min(1),
+			mcp.Max(4),
+			mcp.Description("The number of CPU sockets (1-4)."),
+		),
+		mcp.WithNumber("cpu_cores",
+			mcp.Required(),
+			mcp.Min(1),
+			mcp.Description("The number of CPU cores per socket (minimum 1)."),
+		),
+		mcp.WithNumber("cpu_threads",
+			mcp.Required(),
+			mcp.Min(1),
+			mcp.Description("The number of CPU threads per core (minimum 1)."),
+		),
+		mcp.WithString("cpu_affinity",
+			mcp.Description("The CPU affinity string. Comma-separated list, where each item is one of: non-negative integer (e.g., '0', '1', '2'), range of non-negative integers (e.g., '0-3', '4-7'), caret (^) followed by a non-negative integer to exclude (e.g., '^2' excludes CPU 2). Examples: '0-3', '0,1,2,3', '0-7,^2,^5'."),
+		),
+		// Memory
+		mcp.WithNumber("memory_mb",
+			mcp.Required(),
+			mcp.Min(64),
+			mcp.Description("The amount of physical memory in megabytes (MB) for the instance (minimum 64 MB)."),
+		),
+		// Optional flags
+		mcp.WithBoolean("imds_enabled",
+			mcp.Description("Whether to enable access to the Instance Metadata Service (IMDS) for this instance. Defaults to false. This will add an internal network interface to the instance."),
+		),
+		mcp.WithBoolean("autostart",
+			mcp.Description("Whether the instance should start automatically when the node boots. Defaults to false."),
+		),
+		// Complex nested structures as JSON
+		mcp.WithString("networks_json",
+			mcp.Required(),
+			mcp.Description("JSON array of network interface configurations. Each network must have: vswitch_id (string), port_group_name (string), and optionally: mac (string), bandwidth (object), model (string), ipv4 (object), ipv6 (object). Example: [{\"vswitch_id\":\"vsw-xxx\",\"port_group_name\":\"spg0\"}]"),
+		),
+		mcp.WithString("metadata_json",
+			mcp.Required(),
+			mcp.Description("JSON object with instance-type-specific metadata. For LXC: {\"_type\":\"lxc\",\"init\":\"/sbin/init\"}. For QEMU: {\"_type\":\"qemu\",\"cpu_model\":\"...\",\"machine_type\":\"...\",\"firmware\":\"bios|efi\",\"secure_boot\":{...},\"new_volumes\":[...],\"existing_volumes\":[...]}. Refer to API spec for full structure."),
 		),
 	), handleDeployInstance
 }
 
 func handleDeployInstance(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	payloadStr, err := requiredParam[string](req, "payload_json")
+	// Extract destination (node_id or cluster_id)
+	nodeId, err := optionalParam[string](req, "node_id")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
-	payloadBytes := []byte(payloadStr)
-	if !json.Valid(payloadBytes) {
-		return mcp.NewToolResultError("payload_json must be valid JSON"), nil
+	clusterId, err := optionalParam[string](req, "cluster_id")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	if nodeId == "" && clusterId == "" {
+		return mcp.NewToolResultError("either node_id or cluster_id is required"), nil
+	}
+	if nodeId != "" && clusterId != "" {
+		return mcp.NewToolResultError("only one of node_id or cluster_id should be provided"), nil
+	}
+
+	// Build destination
+	destination := api.DeployInstanceV2Destination{}
+	if nodeId != "" {
+		destination.NodeId = &nodeId
+	} else {
+		destination.ClusterId = &clusterId
+	}
+
+	// Extract basic fields
+	name, err := requiredParam[string](req, "name")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	description, err := optionalParam[string](req, "description")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	architecture, err := requiredParam[string](req, "architecture")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	image, err := optionalParam[string](req, "image")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	typeVal, err := requiredParam[float64](req, "type")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	instanceType := enum.InstanceTypeEnum(int(typeVal))
+	if instanceType < 0 || instanceType > 3 {
+		return mcp.NewToolResultError("type must be between 0 and 3 (0=Docker, 1=LXC, 2=QEMU, 3=Podman)"), nil
+	}
+
+	// Extract CPU configuration
+	cpuSockets, err := requiredParam[float64](req, "cpu_sockets")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	cpuCores, err := requiredParam[float64](req, "cpu_cores")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	cpuThreads, err := requiredParam[float64](req, "cpu_threads")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	cpuAffinity, err := optionalParam[string](req, "cpu_affinity")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	cpu := api.DeployInstanceV2CPU{
+		Sockets:  int(cpuSockets),
+		Cores:    int(cpuCores),
+		Threads:  int(cpuThreads),
+		Affinity: cpuAffinity,
+	}
+
+	// Extract memory
+	memoryMB, err := requiredParam[float64](req, "memory_mb")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	if memoryMB < 64 {
+		return mcp.NewToolResultError("memory_mb must be at least 64"), nil
+	}
+
+	// Extract optional flags
+	imdsEnabled, err := optionalParam[bool](req, "imds_enabled")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	autostart, err := optionalParam[bool](req, "autostart")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Extract networks JSON
+	networksJSON, err := requiredParam[string](req, "networks_json")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	networksBytes := []byte(networksJSON)
+	if !json.Valid(networksBytes) {
+		return mcp.NewToolResultError("networks_json must be valid JSON"), nil
+	}
+	var networks []api.DeployInstanceV2Network
+	if err := json.Unmarshal(networksBytes, &networks); err != nil {
+		return mcp.NewToolResultError("failed to parse networks_json: " + err.Error()), nil
+	}
+	if len(networks) == 0 {
+		return mcp.NewToolResultError("at least one network is required"), nil
+	}
+
+	// Extract metadata JSON
+	metadataJSON, err := requiredParam[string](req, "metadata_json")
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	metadataBytes := []byte(metadataJSON)
+	if !json.Valid(metadataBytes) {
+		return mcp.NewToolResultError("metadata_json must be valid JSON"), nil
+	}
+
+	// Build the deployment argument
+	deployArg := api.DeployInstanceV2Arg{
+		Destination: destination,
+		Name:        name,
+		Architecture: architecture,
+		Type:        instanceType,
+		CPU:         cpu,
+		Memory:      int(memoryMB),
+		Networks:    networks,
+		Metadata:    json.RawMessage(metadataBytes),
+	}
+
+	if description != "" {
+		deployArg.Description = description
+	}
+	if image != "" {
+		deployArg.Image = image
+	}
+	if imdsEnabled {
+		deployArg.ImdsEnabled = true
+	}
+	if autostart {
+		deployArg.Autostart = true
 	}
 
 	client, err := session.GetSession("sessionId")
@@ -440,9 +652,7 @@ func handleDeployInstance(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	res, deployErr := api.DeployInstanceV2(ctx, client, &api.DeployInstanceV2Arg{
-		Payload: json.RawMessage(payloadBytes),
-	})
+	res, deployErr := api.DeployInstanceV2(ctx, client, &deployArg)
 	if deployErr != nil {
 		return mcp.NewToolResultError(deployErr.Error()), nil
 	}

@@ -239,22 +239,166 @@ func BackupInstance(ctx context.Context, c *Client, arg *BackupInstanceArg) (*Ba
 	return &resp, nil
 }
 
-type DeployInstanceV2Arg struct {
-	Payload json.RawMessage
+// DeployInstanceV2Destination specifies where to deploy the instance
+type DeployInstanceV2Destination struct {
+	NodeId    *string `json:"node_id,omitempty"`
+	ClusterId *string `json:"cluster_id,omitempty"`
 }
+
+// DeployInstanceV2CPU specifies CPU configuration
+type DeployInstanceV2CPU struct {
+	Sockets  int    `json:"sockets"`
+	Cores    int    `json:"cores"`
+	Threads  int    `json:"threads"`
+	Affinity string `json:"affinity,omitempty"`
+}
+
+// DeployInstanceV2NetworkBandwidth specifies bandwidth limits
+type DeployInstanceV2NetworkBandwidth struct {
+	Average float64 `json:"average"`
+	Burst   float64 `json:"burst,omitempty"`
+}
+
+// DeployInstanceV2NetworkBandwidthConfig specifies inbound/outbound bandwidth
+type DeployInstanceV2NetworkBandwidthConfig struct {
+	Inbound  *DeployInstanceV2NetworkBandwidth `json:"inbound,omitempty"`
+	Outbound *DeployInstanceV2NetworkBandwidth `json:"outbound,omitempty"`
+}
+
+// DeployInstanceV2NetworkIPv4 specifies IPv4 configuration
+type DeployInstanceV2NetworkIPv4 struct {
+	Enabled bool   `json:"enabled"`
+	Address string `json:"address,omitempty"`
+	Netmask string `json:"netmask,omitempty"`
+	Gateway string `json:"gateway,omitempty"`
+}
+
+// DeployInstanceV2NetworkIPv6 specifies IPv6 configuration
+type DeployInstanceV2NetworkIPv6 struct {
+	Enabled bool   `json:"enabled"`
+	Address string `json:"address,omitempty"`
+	Netmask string `json:"netmask,omitempty"`
+	Gateway string `json:"gateway,omitempty"`
+}
+
+// DeployInstanceV2Network specifies network interface configuration
+type DeployInstanceV2Network struct {
+	Mac           string                                  `json:"mac,omitempty"`
+	VswitchId     string                                  `json:"vswitch_id"`
+	PortGroupName string                                  `json:"port_group_name"`
+	Bandwidth     *DeployInstanceV2NetworkBandwidthConfig `json:"bandwidth,omitempty"`
+	Model         string                                  `json:"model,omitempty"`
+	IPv4          *DeployInstanceV2NetworkIPv4            `json:"ipv4,omitempty"`
+	IPv6          *DeployInstanceV2NetworkIPv6            `json:"ipv6,omitempty"`
+}
+
+// DeployInstanceV2NewVolume specifies a new volume to create
+type DeployInstanceV2NewVolume struct {
+	Backup        bool   `json:"backup,omitempty"`
+	Readonly      bool   `json:"readonly,omitempty"`
+	Bus           string `json:"bus"` // ide, sata, scsi, virtio, usb
+	Dev           string `json:"dev"`
+	Driver        string `json:"driver"` // qcow2, vmdk, raw
+	StoragePoolId string `json:"storage_pool_id"`
+	Size          float64 `json:"size"` // size in GB
+}
+
+// DeployInstanceV2ExistingVolume specifies an existing volume to attach
+type DeployInstanceV2ExistingVolume struct {
+	Backup   bool   `json:"backup,omitempty"`
+	Readonly bool   `json:"readonly,omitempty"`
+	Bus      string `json:"bus"` // ide, sata, scsi, virtio, usb
+	Dev      string `json:"dev"`
+	Driver   string `json:"driver"` // qcow2, vmdk, raw
+	VolumeId string `json:"volume_id"`
+}
+
+// DeployInstanceV2MetadataLXC specifies LXC-specific metadata
+type DeployInstanceV2MetadataLXC struct {
+	Type string `json:"_type"` // "lxc"
+	Init string `json:"init,omitempty"`
+}
+
+// DeployInstanceV2SecureBoot specifies Secure Boot configuration
+type DeployInstanceV2SecureBoot struct {
+	Enabled            bool `json:"enabled"`
+	EnrollStandardKeys bool `json:"enroll_standard_keys,omitempty"`
+}
+
+// DeployInstanceV2MetadataQEMU specifies QEMU-specific metadata
+type DeployInstanceV2MetadataQEMU struct {
+	Type            string                          `json:"_type"` // "qemu"
+	CpuModel        string                          `json:"cpu_model"`
+	MachineType     string                          `json:"machine_type"`
+	Firmware        string                          `json:"firmware"` // "bios" or "efi"
+	SecureBoot      *DeployInstanceV2SecureBoot     `json:"secure_boot"`
+	NewVolumes      []DeployInstanceV2NewVolume     `json:"new_volumes,omitempty"`
+	ExistingVolumes []DeployInstanceV2ExistingVolume `json:"existing_volumes,omitempty"`
+}
+
+// DeployInstanceV2Arg specifies the request payload for deploying an instance
+type DeployInstanceV2Arg struct {
+	Destination  DeployInstanceV2Destination `json:"destination"`
+	Name         string                      `json:"name"`
+	Description  string                      `json:"description,omitempty"`
+	Architecture string                      `json:"architecture"`
+	Image        string                      `json:"image,omitempty"` // Required for LXC instances
+	Type         enum.InstanceTypeEnum        `json:"type"`
+	CPU          DeployInstanceV2CPU          `json:"cpu"`
+	Memory       int                          `json:"memory"` // Memory in MB, minimum 64
+	ImdsEnabled  bool                         `json:"imds_enabled,omitempty"`
+	Networks     []DeployInstanceV2Network    `json:"networks"`
+	// Metadata can be either LXC or QEMU metadata
+	// Use json.RawMessage for now to handle the union type, or use interface{} with custom marshaling
+	Metadata json.RawMessage `json:"metadata"`
+	Autostart bool           `json:"autostart,omitempty"`
+}
+
 type DeployInstanceV2Response struct {
 	TaskId string `json:"task_id"`
 }
 
 func DeployInstanceV2(ctx context.Context, c *Client, arg *DeployInstanceV2Arg) (*DeployInstanceV2Response, *APIError) {
-	if arg == nil || len(arg.Payload) == 0 {
-		return nil, NewAPIError(400, "payload is required")
+	if arg == nil {
+		return nil, NewAPIError(400, "argument is required")
+	}
+
+	// Validate required fields
+	if arg.Name == "" {
+		return nil, NewAPIError(400, "name is required")
+	}
+	if arg.Architecture == "" {
+		return nil, NewAPIError(400, "architecture is required")
+	}
+	if arg.CPU.Sockets == 0 || arg.CPU.Cores == 0 || arg.CPU.Threads == 0 {
+		return nil, NewAPIError(400, "cpu sockets, cores, and threads are required")
+	}
+	if arg.Memory < 64 {
+		return nil, NewAPIError(400, "memory must be at least 64 MB")
+	}
+	if len(arg.Networks) == 0 {
+		return nil, NewAPIError(400, "at least one network is required")
+	}
+	if len(arg.Metadata) == 0 {
+		return nil, NewAPIError(400, "metadata is required")
+	}
+	// Validate destination: either node_id or cluster_id must be set
+	if arg.Destination.NodeId == nil && arg.Destination.ClusterId == nil {
+		return nil, NewAPIError(400, "either destination.node_id or destination.cluster_id is required")
+	}
+	if arg.Destination.NodeId != nil && arg.Destination.ClusterId != nil {
+		return nil, NewAPIError(400, "only one of destination.node_id or destination.cluster_id should be provided")
 	}
 
 	path := "/v2/instances"
 
+	payload, err := json.Marshal(arg)
+	if err != nil {
+		return nil, NewAPIError(500, "failed to encode request payload: "+err.Error())
+	}
+
 	var resp DeployInstanceV2Response
-	if apiErr := c.Post(ctx, path, nil, bytes.NewReader(arg.Payload), &resp); apiErr != nil {
+	if apiErr := c.Post(ctx, path, nil, bytes.NewReader(payload), &resp); apiErr != nil {
 		return nil, apiErr
 	}
 	return &resp, nil
